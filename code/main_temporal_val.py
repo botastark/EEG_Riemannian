@@ -1,19 +1,20 @@
 from __future__ import print_function, division
-import tensorflow as tf
-import sys, os
+# import tensorflow as tf
+import sys
+import os
 import numpy as np
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from tqdm import tqdm
-from time import time
-import pyriemann
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import cohen_kappa_score,accuracy_score
+# from time import time
+# import pyriemann
+# from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import cohen_kappa_score, accuracy_score
 from sklearn.model_selection import KFold
 from rich.progress import track
 import yaml
 from scipy.stats import pearsonr
 from model.temporal_information import temporal_info_stream
-from tensorflow.python.client import device_lib
+# from tensorflow.python.client import device_lib
 from utils import root_mean_squared_error_numpy, load_dataset_feature_addr, parse_valid_data, save_temporal_val_result
 import argparse
 
@@ -38,11 +39,8 @@ parser.add_argument('--BiLSTM', default=False, action='store_true')
 parser.add_argument('--layer-num', default=3, type=int, metavar='N',
                     help='LSTM or BiLSTM layer number')
 
-
-
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
-
 
 
 def load_config(name):
@@ -51,11 +49,14 @@ def load_config(name):
 
     return config
 
+
 config = load_config('dataset_params.yaml')
 
-net_params = {'epochs': args.epochs, 'batch_size': args.batch_size, 'early_stopping': args.early_stopping, 'bidirectional_flag': args.BiLSTM, 'layer_num': args.layer_num}
+net_params = {'epochs': args.epochs, 'batch_size': args.batch_size, 'early_stopping': args.early_stopping,
+              'bidirectional_flag': args.BiLSTM, 'layer_num': args.layer_num}
 
-class experiments():
+
+class experiments:
     def __init__(self, dataset_name):
         self.dataset_name = dataset_name
 
@@ -67,39 +68,39 @@ class experiments():
         Parameters search: rank of EEG
         '''
 
-        Fold_No=3
-        val_acc_result = np.zeros((config[self.dataset_name]['Subject_No'], config[self.dataset_name]['Session_No'], Fold_No))
-        val_kap_result = np.zeros((config[self.dataset_name]['Subject_No'], config[self.dataset_name]['Session_No'], Fold_No))
+        Fold_No = 3
+        val_acc_result = np.zeros(
+            (config[self.dataset_name]['Subject_No'], config[self.dataset_name]['Session_No'], Fold_No))
+        val_kap_result = np.zeros(
+            (config[self.dataset_name]['Subject_No'], config[self.dataset_name]['Session_No'], Fold_No))
 
-        for subject_num in track(range(1, config[self.dataset_name]['Subject_No'] +1)):
-            for session_num in range(1,config[self.dataset_name]['Session_No']+1):
-                #____________________LOAD DATA____________________#
+        for subject_num in track(range(1, config[self.dataset_name]['Subject_No'] + 1)):
+            for session_num in range(1, config[self.dataset_name]['Session_No'] + 1):
+                # ____________________LOAD DATA____________________#
                 X_train = np.load(data_train_addr.format(subject_num, session_num))
-                X_test  = np.load(data_test_addr.format(subject_num, session_num))
+                X_test = np.load(data_test_addr.format(subject_num, session_num))
                 Y_train = np.load(label_train_addr.format(subject_num, session_num))
-                Y_test  = np.load(label_test_addr.format(subject_num, session_num))
+                Y_test = np.load(label_test_addr.format(subject_num, session_num))
                 ####################################################
                 train_embed, train_label = X_train, Y_train
 
-
                 kfold = KFold(Fold_No, True, 1)
-
 
                 Fold_count = 1
                 train_label = Y_train
 
                 for train_index, test_index in kfold.split(train_embed):
+                    X_train, X_val, Y_train, Y_val = train_embed[train_index], train_embed[test_index], train_label[
+                        train_index], train_label[test_index]
 
-                    X_train, X_val, Y_train, Y_val =  train_embed[train_index], train_embed[test_index], train_label[train_index], train_label[test_index]
-
-
-                    Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name, net_params)
+                    Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name,
+                                                  net_params)
 
                     val_acc_mlp = np.mean(accuracy_score(Y_val, np.argmax(Y_pred, axis=-1)))
                     val_kap_mlp = np.mean(cohen_kappa_score(Y_val, np.argmax(Y_pred, axis=-1)))
 
-                    val_acc_result[subject_num-1,session_num-1, Fold_No-1] = val_acc_mlp
-                    val_kap_result[subject_num-1,session_num-1, Fold_No-1] = val_kap_mlp
+                    val_acc_result[subject_num - 1, session_num - 1, Fold_No - 1] = val_acc_mlp
+                    val_kap_result[subject_num - 1, session_num - 1, Fold_No - 1] = val_kap_mlp
 
                     Fold_count += 1
 
@@ -108,41 +109,33 @@ class experiments():
 
         save_temporal_val_result(self.dataset_name, val_acc_result, val_kap_result, args.BiLSTM, args.layer_num)
 
-
-
     def run_seed_vig(self):
 
         addr_dict = load_dataset_feature_addr(self.dataset_name)
         load_data_addr, load_label_addr = list(addr_dict.values())
 
-        val_Fold_No  = 3
+        val_Fold_No = 3
         test_Fold_No = config[self.dataset_name]['Fold_No']
-
 
         val_rmse_result = np.zeros((config[self.dataset_name]['Subject_No'], test_Fold_No, val_Fold_No))
         val_corr_result = np.zeros((config[self.dataset_name]['Subject_No'], test_Fold_No, val_Fold_No))
 
-
-        for subject_num in track(range(1, config[self.dataset_name]['Subject_No'] +1)):
-            #____________________LOAD DATA____________________#
-            X     = np.load(load_data_addr.format(subject_num))
-            Y     = np.load(load_label_addr.format(subject_num))
+        for subject_num in track(range(1, config[self.dataset_name]['Subject_No'] + 1)):
+            # ____________________LOAD DATA____________________#
+            X = np.load(load_data_addr.format(subject_num))
+            Y = np.load(load_label_addr.format(subject_num))
             ####################################################
 
+            test_Fold_count = 1
 
-            test_Fold_count=1
-
-            Y_test_total   = np.zeros((1,1))
-            Y_pred_total   = np.zeros((1,1))
-
+            Y_test_total = np.zeros((1, 1))
+            Y_pred_total = np.zeros((1, 1))
 
             rmse_array = np.zeros(([config[self.dataset_name]['Subject_No'], test_Fold_No]))
             corr_array = np.zeros(([config[self.dataset_name]['Subject_No'], test_Fold_No]))
 
-
             # kfold_test = KFold(test_Fold_No, True, 1)
             kfold_test = KFold(test_Fold_No, False, None)
-
 
             for train_index, test_index in kfold_test.split(X):
 
@@ -150,142 +143,120 @@ class experiments():
 
                 X_train, X_test, Y_train, Y_test = X[train_index], X[test_index], Y[train_index], Y[test_index]
 
-
                 kfold_val = KFold(val_Fold_No, True, 1)
 
                 val_Fold_count = 1
 
                 train_embed, train_label = X_train, Y_train
 
-
-
-                Y_val_total   = np.zeros((0,1))
-                Y_pred_total   = np.zeros((0,1))
+                Y_val_total = np.zeros((0, 1))
+                Y_pred_total = np.zeros((0, 1))
 
                 for train_index, test_index in kfold_val.split(train_embed):
+                    X_train, X_val, Y_train, Y_val = train_embed[train_index], train_embed[test_index], train_label[
+                        train_index], train_label[test_index]
 
-                    X_train, X_val, Y_train, Y_val =  train_embed[train_index], train_embed[test_index], train_label[train_index], train_label[test_index]
+                    Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name,
+                                                  net_params)
 
-
-                    Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name, net_params)
-
-
-                    temp_Y_val  = Y_val
+                    temp_Y_val = Y_val
                     temp_Y_pred = Y_pred
 
-                    Y_val_total  = np.vstack((Y_val_total, temp_Y_val))
+                    Y_val_total = np.vstack((Y_val_total, temp_Y_val))
                     Y_pred_total = np.vstack((Y_pred_total, temp_Y_pred))
 
                     val_Fold_count += 1
 
-
-                Y_val_total  = np.ravel(Y_val_total)
+                Y_val_total = np.ravel(Y_val_total)
                 Y_pred_total = np.ravel(Y_pred_total)
 
-                rmse_value   =  root_mean_squared_error_numpy(Y_val_total, Y_pred_total) # RMSE value for all 885 samples
+                rmse_value = root_mean_squared_error_numpy(Y_val_total, Y_pred_total)  # RMSE value for all 885 samples
                 corcoeff_value, _ = pearsonr(Y_val_total, Y_pred_total)
 
                 test_Fold_count += 1
 
-        rmse_array[subject_num-1, test_Fold_No-1]   = rmse_value
-        corr_array[subject_num-1, test_Fold_No-1]   = corcoeff_value
+        rmse_array[subject_num - 1, test_Fold_No - 1] = rmse_value
+        corr_array[subject_num - 1, test_Fold_No - 1] = corcoeff_value
 
-
-        save_temporal_val_result(self.dataset_name, val_acc_result, val_kap_result, args.BiLSTM, args.layer_num)
-
-
+        save_temporal_val_result(self.dataset_name, rmse_array, corr_array, args.BiLSTM, args.layer_num)
 
     def run_bci(self):
 
         addr_dict = load_dataset_feature_addr(self.dataset_name)
-
         data_train_addr, data_test_addr, label_train_addr, label_test_addr = list(addr_dict.values())
 
         '''
         Parameters search: rank of EEG
         '''
-
-        Fold_No=5
+        Fold_No = 5
         val_acc_result = np.zeros((config[self.dataset_name]['Subject_No'], Fold_No))
         val_kap_result = np.zeros((config[self.dataset_name]['Subject_No'], Fold_No))
 
-        for subject_num in track(range(1, config[self.dataset_name]['Subject_No']+1)):
-            #____________________LOAD DATA____________________#
-            X_train = np.load(data_train_addr.format(subject_num)) #  trials, frequency_band, channel, signal
+        for subject_num in track(range(1, config[self.dataset_name]['Subject_No'] + 1)):
+            print("loading data for subject " + str(subject_num))
+            # ____________________LOAD DATA____________________#
+            X_train = np.load(data_train_addr.format(subject_num))  # trials, frequency_band, channel, signal
             Y_train = np.load(label_train_addr.format(subject_num))
-            X_test  = np.load(data_test_addr.format(subject_num))
-            Y_test  = np.load(label_test_addr.format(subject_num))
-            Y_train = np.expand_dims(Y_train, axis=1) -1  #1,2,3,4 ---> 0,1,2,3
-            Y_test  = np.expand_dims(Y_test, axis=1) -1  #1,2,3,4 ---> 0,1,2,3
+            X_test = np.load(data_test_addr.format(subject_num))
+            Y_test = np.load(label_test_addr.format(subject_num))
+            Y_train = np.expand_dims(Y_train, axis=1) - 1  # 1,2,3,4 ---> 0,1,2,3
+            Y_test = np.expand_dims(Y_test, axis=1) - 1  # 1,2,3,4 ---> 0,1,2,3
             ####################################################
-
             X_train, Y_train = parse_valid_data(X_train, Y_train)
-            X_test,  Y_test  = parse_valid_data(X_test,  Y_test)
-
+            X_test, Y_test = parse_valid_data(X_test, Y_test)
             train_embed, train_label = X_train, Y_train
-
 
             kfold = KFold(Fold_No, False, None)
 
-
             Fold_count = 1
             train_label = Y_train
-
             for train_index, test_index in kfold.split(train_embed):
+                X_train, X_val, Y_train, Y_val = train_embed[train_index], train_embed[test_index], train_label[
+                    train_index], train_label[test_index]
 
-                X_train, X_val, Y_train, Y_val =  train_embed[train_index], train_embed[test_index], train_label[train_index], train_label[test_index]
+                # print("temporal_info_stream")
+                Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name,
+                                              net_params)
+                # return
 
-
-                Y_pred = temporal_info_stream(X_train, X_val, X_test, Y_train, Y_val, Y_test, self.dataset_name, net_params)
-
-
-                '''
-                2a output label in one-hot form, 2b output label in range (0,1)
-                '''
+                # '''
+                # 2a output label in one-hot form, 2b output label in range (0,1)
+                # '''
                 if '2a' in self.dataset_name:
                     Y_pred = np.argmax(Y_pred, axis=-1)
                 else:
                     Y_pred = np.round(Y_pred)
-                    Y_val  = Y_val.squeeze(1)
+                    Y_val = Y_val.squeeze(1)
 
                 val_acc_mlp = np.mean(accuracy_score(Y_val, Y_pred))
                 val_kap_mlp = np.mean(cohen_kappa_score(Y_val, Y_pred))
 
-
-                val_acc_result[subject_num-1,Fold_count-1] = val_acc_mlp
-                val_kap_result[subject_num-1,Fold_count-1] = val_kap_mlp
+                val_acc_result[subject_num - 1, Fold_count - 1] = val_acc_mlp
+                val_kap_result[subject_num - 1, Fold_count - 1] = val_kap_mlp
 
                 Fold_count += 1
+                print("Done for the iteration " + str(Fold_count))
 
+            print("saving")
             save_temporal_val_result(self.dataset_name, val_acc_result, val_kap_result, args.BiLSTM, args.layer_num)
-
 
     def run(self):
 
         if 'BCI' in self.dataset_name:
             self.run_bci()
-        elif self.dataset_name=='SEED':
+        elif self.dataset_name == 'SEED':
             self.run_seed()
-        elif self.dataset_name=='SEED_VIG':
+        elif self.dataset_name == 'SEED_VIG':
             self.run_seed_vig()
         else:
             raise Exception('Datasets Name Error')
 
 
-
-
-
 if __name__ == '__main__':
-
     config = load_config('dataset_params.yaml')
-    with tf.device("gpu:0"):
-        np.random.seed(args.cpu_seed)
-        tf.random.set_random_seed(args.gpu_seed)
-        experiments(args.dataset).run()
-
-
-
-
-
+    # with tf.device("gpu:0"):
+    np.random.seed(args.cpu_seed)
+    # tf.random.set_random_seed(args.gpu_seed)
+    experiments(args.dataset).run()
 
 #
