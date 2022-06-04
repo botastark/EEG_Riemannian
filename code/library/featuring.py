@@ -7,7 +7,7 @@ from pyriemann.tangentspace import TangentSpace
 class Riemann(TransformerMixin):
     def __init__(self, n_fb=9, metric='riemann'):
         self.n_fb = n_fb
-        self.ts = [TangentSpace(metric=metric) for fb in range(n_fb)] # Tangent Space Learning
+        self.ts = [TangentSpace(metric=metric) for fb in range(n_fb)]  # Tangent Space Learning
 
     def fit(self, X, y):
         for fb in range(self.n_fb):
@@ -16,7 +16,7 @@ class Riemann(TransformerMixin):
 
     def transform(self, X):
         n_sub, n_fb, p, _ = X.shape
-        Xout = np.empty((n_sub, n_fb, p*(p+1)//2))
+        Xout = np.empty((n_sub, n_fb, p * (p + 1) // 2))
         for fb in range(n_fb):
             Xout[:, fb, :] = self.ts[fb].transform(X[:, fb, :, :])
         return Xout.reshape(n_sub, -1)  # (sub, fb * c*(c+1)/2)
@@ -64,7 +64,7 @@ class NaiveVec(TransformerMixin):
 
     def transform(self, X):
         n_sub, n_fb, n_compo, _ = X.shape
-        q = int(n_compo * (n_compo+1) / 2)
+        q = int(n_compo * (n_compo + 1) / 2)
         Xout = np.empty((n_sub, n_fb, q))
         for sub in range(n_sub):
             for fb in range(n_fb):
@@ -78,7 +78,6 @@ class NaiveVec(TransformerMixin):
                     upper = X[sub, fb][np.triu_indices(n_compo, k=1)]
                     Xout[sub, fb] = np.concatenate((logdiag, upper), axis=None)
         return Xout.reshape(n_sub, -1)  # (sub, fb * c*(c+1)/2)
-
 
 
 def to_quotient(C, rank):

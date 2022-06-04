@@ -4,7 +4,6 @@ from scipy.linalg import pinv, eigh
 from sklearn.base import TransformerMixin
 
 
-
 def shrink(cov, alpha):
     n = len(cov)
     shrink_cov = (1 - alpha) * cov + alpha * np.trace(cov) * np.eye(n) / n
@@ -49,7 +48,6 @@ class ProjLWSpace(TransformerMixin):
             for sub in range(n_sub):
                 Xout[sub, fb] = shrink(X[sub, fb], self.shrink)
         return Xout  # (sub , fb, compo, compo)
-
 
 
 class ProjCommonWassSpace(TransformerMixin):
@@ -97,7 +95,7 @@ class ProjCommonSpace(TransformerMixin):
 
             ix = np.argsort(np.abs(eigvals))[::-1]
             evecs = eigvecs[:, ix]
-            evecs = evecs[:, :self.rank_num].T #Top R eigenvalues
+            evecs = evecs[:, :self.rank_num].T  # Top R eigenvalues
             self.filters_.append(evecs)  # (fb, compo, chan) row vec
             self.patterns_.append(pinv(evecs).T)  # (fb, compo, chan)
         return self
@@ -114,7 +112,8 @@ class ProjCommonSpace(TransformerMixin):
         return Xout  # (sub , fb, compo, compo)
 
 
-class ProjSPoCSpace(TransformerMixin): # If consider label corresponding to convariance matrix in Riemannian Mean Estimation
+class ProjSPoCSpace(
+    TransformerMixin):  # If consider label corresponding to convariance matrix in Riemannian Mean Estimation
     def __init__(self, shrink=0, scale=1, rank_num=50, reg=1e-7):
         self.shrink = shrink
         self.scale = scale

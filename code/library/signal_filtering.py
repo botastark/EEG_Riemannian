@@ -5,7 +5,7 @@ import numpy as np
 from scipy import signal
 from scipy.signal import butter, lfilter, sosfilt, sosfreqz
 import matplotlib.pyplot as plt
-from pylab import figure,show,setp
+from pylab import figure, show, setp
 import matplotlib.cbook as cbook
 import matplotlib.cm as cm
 from matplotlib.collections import LineCollection
@@ -14,16 +14,16 @@ from tqdm import tqdm
 from scipy import stats
 import os
 
-
-#___Notch_Filter___#
-fs=250
+# ___Notch_Filter___#
+fs = 250
 f0 = 50.0  # Frequency to be removed from signal (Hz)
 Q = 30.0  # Quality factor
-w0 = f0/(fs/2)  # Normalized Frequency
-
+w0 = f0 / (fs / 2)  # Normalized Frequency
 
 order = 4
-#___Bandpass_Filter___#
+
+
+# ___Bandpass_Filter___#
 # def butter_bandpass(lowcut, highcut, fs, order=order):
 #     nyq = 0.5 * fs
 #     low = lowcut / nyq
@@ -39,46 +39,46 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     sos = butter(order, [low, high], analog=False, btype='band', output='sos')
     return sos
 
-
     # def butter_bandpass_filter(data, lowcut, highcut, fs, order=order):
     #     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
     #     y = lfilter(b, a, data)
     #
-    #
     #     return y
+
 
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     sos = butter_bandpass(lowcut, highcut, fs, order=order)
     y = sosfilt(sos, data)
-
     return y
 
 
-class signal_filtering():
+class signal_filtering:
     def __init__(self, dataset):
         self.dataset = dataset
 
-
     def main(self, data):
-        if self.dataset =='BCI_IV_2a':
+        if self.dataset == 'BCI_IV_2a':
             start_point, end_point = 2.0, 6.0
             channel_num = 22
-        if self.dataset =='BCI_IV_2b':
-            start_point, end_point = 3.4, 7.5
+        if self.dataset == 'BCI_IV_2b':
+            start_point, end_point = 3.4, 7.4
             channel_num = 3
         # plt.plot(data.T)
         # plt.show()
-        data = data[:,int(fs*start_point):int(fs*end_point)]
+        # [850:1875] = 1025 for bci 2b
+        data = data[:, int(fs * start_point):int(fs * end_point)]
 
-        # for channel in range(data.shape[0]):
-        #     data[channel] = (data[channel] - np.min(data[channel]))/ (np.max(data[channel])-np.min(data[channel]))
+        for channel in range(data.shape[0]):
+            data[channel] = (data[channel] - np.min(data[channel])) / (np.max(data[channel]) - np.min(data[channel]))
 
-        new_data = np.zeros((25, data.shape[0], data.shape[1])) #frequency_band, channels, time-series
+        new_data = np.zeros((25, data.shape[0], data.shape[1]))  # frequency_band, channels, time-series
         # plt.plot(data[2])
         # plt.show()
-        for m in range(0, 25): #frequency band
+        for m in range(0, 25):  # frequency band
             for k in np.arange(0, channel_num):
-                new_data[m, k] = butter_bandpass_filter(data[k], lowcut= 0.5 + m*2 , highcut= 0.5 +(m+1)*2, fs=250, order=order)
+                new_data[m, k] = butter_bandpass_filter(data[k], lowcut=0.5 + m * 2, highcut=0.5 + (m + 1) * 2, fs=250,
+                                                        order=order)
+
 
                 # if m == 0:
                 #     new_data[m, k,:] = butter_bandpass_filter(data[k,:], lowcut= 0.5 , highcut= 2.0, fs=250, order=order)
@@ -99,13 +99,8 @@ class signal_filtering():
         #     new_data[channel] = (new_data[channel] - np.min(new_data[channel]))/ (np.max(new_data[channel])-np.min(new_data[channel]))
 
         new_data = new_data.tolist()
+        # print(len(new_data))
 
         return new_data
-
-
-
-
-
-
 
 #
