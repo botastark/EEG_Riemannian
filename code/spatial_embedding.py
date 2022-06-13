@@ -68,7 +68,7 @@ class spatial_features():
             X_training = X_train[:, freqband_band, :, :]
             X_testing = X_test[:, freqband_band, :, :]
 
-            train_embedding, test_embedding = self.s(X_training, X_testing, self.rieman_flag, self.rank_num)
+            train_embedding, test_embedding = self.projection(X_training, X_testing, self.rieman_flag, self.rank_num)
 
             train_embed.append(train_embedding)
             test_embed.append(test_embedding)
